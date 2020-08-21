@@ -81,9 +81,9 @@ class enaza
             }
         }
         if($category_id){
-            return response()->json($this->paginateCollection(collect($response->first()), 1));
+            return response()->json($this->paginateCollection(collect($response->first()), 20));
         }else{
-            return response()->json($this->paginateCollection(collect($response[0]['products']['product']), 1));
+            return response()->json($this->paginateCollection(collect($response[0]['products']['product']), 20));
         }
     }
 
