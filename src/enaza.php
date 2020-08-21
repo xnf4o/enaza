@@ -24,16 +24,23 @@ class enaza
      */
     public function getGenres(): JsonResponse
     {
-        $response = collect();
+        $genres = collect();
+        $getting = ['product_classes'];
         for ($i = 1; $i < 100; $i++) {
             if ($this->get_http_response_code($this->api_url . 'get_product_classes/' . $this->partnerId . '/1.' . $i . '.xml') !== "200") {
                 break;
             }
             $source = file_get_contents($this->api_url . 'get_product_classes/' . $this->partnerId . '/1.' . $i . '.xml');
             $xml = Xml2Array::create($source)->toCollection();
-            $response->push($xml);
+            foreach ($xml as $key => $type){
+                if(in_array($key, $getting)) {
+                    foreach ($xml[$key][key($type)] as $item) {
+                        $genres->push($item['@attributes']);
+                    }
+                }
+            }
         }
-        return response()->json($response);
+        return response()->json($genres);
     }
 
     /**
@@ -49,20 +56,64 @@ class enaza
     }
 
     /**
+     * @param $category_id
      * @return JsonResponse
      */
-    public function getProducts(): JsonResponse
+    public function getProducts($category_id): JsonResponse
     {
         $response = collect();
+        $products = collect();
         for ($i = 1; $i < 100; $i++) {
             if ($this->get_http_response_code($this->api_url . 'get_products/' . $this->partnerId . '/1.' . $i . '.xml') !== "200") {
                 break;
             }
             $source = file_get_contents($this->api_url . 'get_products/' . $this->partnerId . '/1.' . $i . '.xml');
             $xml = Xml2Array::create($source)->toCollection();
-            $response->push($xml);
+            if($category_id){
+                foreach ($xml['products']['product'] as $product) {
+                    if (isset($product['classes']['class']['@attributes']) && $product['classes']['class']['@attributes']['id'] === $category_id){
+                        $products->push($product);
+                    }
+                }
+                $response->push($products->toArray());
+            } else {
+                $response->push($xml);
+            }
         }
-        return response()->json($response);
+        if($category_id){
+            return response()->json($this->paginateCollection(collect($response->first()), 1));
+        }else{
+            return response()->json($this->paginateCollection(collect($response[0]['products']['product']), 1));
+        }
+    }
+
+    /**
+     * @param $collection
+     * @param $perPage
+     * @param string $pageName
+     * @param null $fragment
+     * @return \Illuminate\Pagination\LengthAwarePaginator
+     */
+    public function paginateCollection($collection, $perPage, $pageName = 'page', $fragment = null)
+    {
+        $currentPage = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage($pageName);
+        $currentPageItems = $collection->slice(($currentPage - 1) * $perPage, $perPage);
+        parse_str(request()->getQueryString(), $query);
+        unset($query[$pageName]);
+        $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+            $currentPageItems,
+            $collection->count(),
+            $perPage,
+            $currentPage,
+            [
+                'pageName' => $pageName,
+                'path' => \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPath(),
+                'query' => $query,
+                'fragment' => $fragment
+            ]
+        );
+
+        return $paginator;
     }
 
     /**
