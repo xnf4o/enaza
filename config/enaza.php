@@ -1,5 +1,6 @@
 <?php
 
 return [
-    'partner_id' => 6257,
+    'partner_id' => 1111,
+    'secret' => 'secretkey',
 ];
