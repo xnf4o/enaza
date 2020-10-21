@@ -156,35 +156,6 @@ class enaza
      * @param string $ip IP покупателя
      * @param float $sum Сумма заказа
      * @param string $comment Комментарий (необязательно)
-     */
-    function buy($game, $user_id, $ip, $sum, $comment = 'Оплата заказа')
-    {
-        $request_id = random_int(111111, 999999);
-        $response = $this->client->request('POST', 'https://ps.enazadev.ru/payment/pay', [
-            'query' => [
-                'order_description' => $this->orderDescription($game, $user_id, $ip, $sum, $request_id, $comment),
-            ],
-        ]);
-
-        return $response->getBody()->getContents();
-    }
-
-    /**
-     * @return string
-     * @throws \GuzzleHttp\Exception\GuzzleException
-     */
-    public function getPaySystems(){
-        $source = file_get_contents('https://ps.enazadev.ru/payment/getpaysystems/?partner_id=' . $this->partnerId);
-        $xml = Xml2Array::create($source)->toCollection();
-        return response()->json($xml);
-    }
-
-    /**
-     * @param array|object $game Объект с игрой
-     * @param int $user_id ID покупателя на нашей стороне
-     * @param string $ip IP покупателя
-     * @param float $sum Сумма заказа
-     * @param string $comment Комментарий (необязательно)
      * @param $request_id
      * @return string
      */
@@ -195,10 +166,11 @@ class enaza
         float $sum,
         $request_id,
         $comment = 'Оплата заказа'
-    ): string {
+    ): string
+    {
         $xml = '<?xml version="1.0" encoding="UTF-8"?>';
-        $xml .= '<order comment="' . $comment . '"  currency="RUR" date="' . Carbon::now()->format('d-m-Y H:i:s') . '" ip="' . $ip . '" partner_id="' . $this->partnerId . '" pay_system="' . $ps . '" request_id="' . $request_id . '"  sum="' . $sum . '" user_id="' . $user_id . '">';
-        $xml .= '<signature>' . $this->signature('<order comment="' . $comment . '"  currency="RUR" date="' . Carbon::now()->format('d-m-Y H:i:s') . '" ip="' . $ip . '" partner_id="' . $this->partnerId . '" pay_system="' . $ps . '" request_id="' . $request_id . '"  sum="' . $sum . '" user_id="' . $user_id . '">') . '</signature>';
+        $xml .= '<order comment="' . $comment . '"  currency="RUR" date="' . Carbon::now()->format('d-m-Y H:i:s') . '" ip="' . $ip . '" partner_id="' . $this->partnerId . '" request_id="' . $request_id . '"  sum="' . $sum . '" user_id="' . $user_id . '">';
+        $xml .= '<signature>' . $this->signature('<order comment="' . $comment . '"  currency="RUR" date="' . Carbon::now()->format('d-m-Y H:i:s') . '" ip="' . $ip . '" partner_id="' . $this->partnerId . '" request_id="' . $request_id . '"  sum="' . $sum . '" user_id="' . $user_id . '">') . '</signature>';
         $xml .= '<return_url>string</return_url>';
         $xml .= '<items>';
         $xml .= '<item product_id="' . $game['@attributes']['id'] . '" cost="' . $game['@attributes']['price'] . '" sum="' . $game['@attributes']['price'] . '" count="1"/>';
@@ -244,8 +216,7 @@ class enaza
             if ($x_level != 1 && $x_type === 'close') {
                 if (isset($multi_key[$x_tag][$x_level])) {
                     $multi_key[$x_tag][$x_level] = 1;
-                }
-                else {
+                } else {
                     $multi_key[$x_tag][$x_level] = 0;
                 }
             }
@@ -271,7 +242,7 @@ class enaza
             while ($start_level < $x_level) {
                 $php_stmt .= '[$level[' . $start_level . ']]';
                 if (isset($multi_key[$level[$start_level]][$start_level]) && $multi_key[$level[$start_level]][$start_level]) {
-                    $php_stmt .= '['.($multi_key[$level[$start_level]][$start_level] - 1).']';
+                    $php_stmt .= '[' . ($multi_key[$level[$start_level]][$start_level] - 1) . ']';
                 }
                 $start_level++;
             }
@@ -279,18 +250,16 @@ class enaza
             if (isset($multi_key[$x_tag][$x_level]) && $multi_key[$x_tag][$x_level] && ($x_type === 'open' || $x_type === 'complete')) {
                 if (!isset($multi_key2[$x_tag][$x_level])) {
                     $multi_key2[$x_tag][$x_level] = 0;
-                }
-                else {
+                } else {
                     $multi_key2[$x_tag][$x_level]++;
                 }
                 $add = '[' . $multi_key2[$x_tag][$x_level] . ']';
             }
             if (isset($xml_elem['value']) && trim($xml_elem['value']) != '' && !array_key_exists('attributes', $xml_elem)) {
                 if ($x_type === 'open') {
-                    $php_stmt_main = $php_stmt.'[$x_type]'.$add.'[\'content\'] = $xml_elem[\'value\'];';
-                }
-                else {
-                    $php_stmt_main = $php_stmt.'[$x_tag]'.$add.' = $xml_elem[\'value\'];';
+                    $php_stmt_main = $php_stmt . '[$x_type]' . $add . '[\'content\'] = $xml_elem[\'value\'];';
+                } else {
+                    $php_stmt_main = $php_stmt . '[$x_tag]' . $add . ' = $xml_elem[\'value\'];';
                 }
                 eval($php_stmt_main);
             }
@@ -320,5 +289,35 @@ class enaza
             }
             return $item;
         }, array_change_key_case($arr));
+    }
+
+    /**
+     * @param array|object $game Объект с игрой
+     * @param int $user_id ID покупателя на нашей стороне
+     * @param string $ip IP покупателя
+     * @param float $sum Сумма заказа
+     * @param string $comment Комментарий (необязательно)
+     */
+    function buy($game, $user_id, $ip, $sum, $comment = 'Оплата заказа')
+    {
+        $request_id = random_int(111111, 999999);
+        $response = $this->client->request('POST', 'https://ps.enazadev.ru/payment/pay', [
+            'query' => [
+                'order_description' => $this->orderDescription($game, $user_id, $ip, $sum, $request_id, $comment),
+            ],
+        ]);
+
+        return $response->getBody()->getContents();
+    }
+
+    /**
+     * @return string
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    public function getPaySystems()
+    {
+        $source = file_get_contents('https://ps.enazadev.ru/payment/getpaysystems/?partner_id=' . $this->partnerId);
+        $xml = Xml2Array::create($source)->toCollection();
+        return response()->json($xml);
     }
 }
